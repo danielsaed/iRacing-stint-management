@@ -67,7 +67,7 @@ if 'db' not in st.session_state:
     st.session_state.db = load_data(client)
 
 # --- CONTENIDO PRINCIPAL ---
-st.markdown("<h1 style='text-align: center;'>🏁 Endurance Stints para Equipos</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>🏁 iRacing Endurance Stints</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Selecciona un equipo o crea uno nuevo para planificar la carrera.</p>", unsafe_allow_html=True)
 st.markdown("") # Espacio vertical
 
@@ -76,14 +76,21 @@ if 'newly_created_team' in st.session_state:
     del st.session_state.newly_created_team
 
 team_names = list(st.session_state.db.keys())
+# Inicializa selected_team en None si no hay una selección válida
 if 'selected_team' not in st.session_state or st.session_state.selected_team not in team_names:
-    st.session_state.selected_team = team_names[0] if team_names else None
+    st.session_state.selected_team = None
 
-# --- SECCIÓN SUPERIOR CENTRADA ---
+# --- SECCIÓN SUPERIOR CENTRADA PARA GESTIÓN DE EQUIPOS ---
 _, mid_col_top, _ = st.columns([1, 2, 1])
 with mid_col_top:
-    if st.session_state.selected_team:
-        st.selectbox("Selecciona un Equipo/Evento", options=team_names, key='selected_team')
+    # El selectbox ahora puede no tener nada seleccionado
+    st.selectbox(
+        "Selecciona un Equipo/Evento", 
+        options=team_names, 
+        key='selected_team',
+        index=team_names.index(st.session_state.selected_team) if st.session_state.selected_team and st.session_state.selected_team in team_names else None,
+        placeholder="Elige un equipo para empezar"
+    )
 
     with st.expander("Gestionar Equipos"):
         col1, col2 = st.columns(2)
@@ -107,12 +114,14 @@ with mid_col_top:
                 else:
                     st.error("No puedes eliminar el último equipo.")
 
-st.markdown("---")
+#st.markdown("---")
 
+# --- CARGA EL RESTO DE LA APP SOLO SI HAY UN EQUIPO SELECCIONADO ---
 if not st.session_state.selected_team:
-    st.info("No hay equipos configurados. Por favor, crea un equipo para comenzar.")
+    st.info("Por favor, selecciona o crea un equipo para continuar.")
     st.stop()
 
+# A partir de aquí, todo el código asume que st.session_state.selected_team tiene un valor
 team_data = st.session_state.db[st.session_state.selected_team]
 config_df = pd.DataFrame(team_data['pilots'])
 horario_df = pd.DataFrame(team_data['horario'])
