@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, time
-import os
-import json
 from pymongo import MongoClient
 
 # --- CONFIGURACIÓN INICIAL Y GESTIÓN DE DATOS ---
