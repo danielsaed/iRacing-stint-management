@@ -59,7 +59,7 @@ def save_data(_client, data):
     collection.update_one({"_id": "main_database"}, {"$set": {"data": data}}, upsert=True)
 
 # --- INICIALIZACIÓN DE LA APP ---
-st.set_page_config(layout="wide", page_title="Gestor de Stints iRacing")
+st.set_page_config(layout="wide", page_title="Stints iRacing")
 
 # CONECTAR A MONGODB Y CARGAR DATOS
 client = init_connection()
@@ -96,9 +96,17 @@ with mid_col_top:
         col1, col2 = st.columns(2)
         with col1:
             new_team_name = st.text_input("Nombre del Nuevo Equipo")
+            new_team_duration = st.selectbox(
+                "Duración de la carrera (Horas)",
+                options=[24, 12, 10, 8, 6, 4, 3],
+                key="new_team_duration"
+            )
             if st.button("➕ Crear Equipo"):
                 if new_team_name and new_team_name not in st.session_state.db:
-                    st.session_state.db[new_team_name] = get_default_team_structure(new_team_name)
+                    st.session_state.db[new_team_name] = get_default_team_structure(
+                        team_name=new_team_name,
+                        duration=new_team_duration
+                    )
                     save_data(client, st.session_state.db)
                     # Actualizamos el estado de la sesión para reflejar el nuevo equipo
                     st.session_state.db = load_data(client)
@@ -149,24 +157,18 @@ with mid_col:
         "Hora de inicio", value=time(start_hour, 0), step=3600, 
         key=f"time_input_{st.session_state.selected_team}"
     )
-    new_duration = c2.selectbox(
-        "Duración (Horas)", options=[24, 12, 10, 8, 6, 4, 3], index=[24, 12, 10, 8, 6, 4, 3].index(race_duration),
-        key=f"duration_input_{st.session_state.selected_team}"
+    # La duración ahora es solo informativa y no se puede cambiar
+    c2.selectbox(
+        "Duración (Horas)", options=[race_duration], index=0,
+        key=f"duration_input_{st.session_state.selected_team}",
+        disabled=True,
+        help="La duración se establece al crear el equipo y no se puede modificar."
     )
 
 # --- LÓGICA DE ACTUALIZACIÓN DE CONFIGURACIÓN DE CARRERA ---
 config_changed = False
 if new_start_time.hour != start_hour:
     team_data['race_config']['start_hour'] = new_start_time.hour
-    config_changed = True
-
-if new_duration != race_duration:
-    st.warning(f"La duración ha cambiado a {new_duration} horas. El horario y la disponibilidad se reiniciarán.")
-    # Reiniciar estructura de datos para la nueva duración
-    new_structure = get_default_team_structure(st.session_state.selected_team, new_duration)
-    team_data['race_config'] = new_structure['race_config']
-    team_data['pilots'] = new_structure['pilots']
-    team_data['horario'] = new_structure['horario']
     config_changed = True
 
 if config_changed:
@@ -182,6 +184,8 @@ with st.expander("1. Configuración de Disponibilidad de Pilotos", expanded=True
         cols[i].markdown(f"<div style='background-color:{color}; color:white; padding: 5px; border-radius: 5px; text-align: center;'>{pilot}</div>", unsafe_allow_html=True)
     st.markdown("")
     
+    st.info("Nota: Todas las horas se muestran en la zona horaria de CDMX (GMT-6).")
+
     display_config_df = config_df.copy()
     dynamic_hour_labels = [f"{(start_hour + h) % 24:02d}:00" for h in range(race_duration)]
     column_map = {str(h): dynamic_hour_labels[h] for h in range(race_duration)}
@@ -192,9 +196,9 @@ with st.expander("1. Configuración de Disponibilidad de Pilotos", expanded=True
         column_config={
             "Piloto": st.column_config.TextColumn(width="medium"),
             **{label: st.column_config.CheckboxColumn(width="small") for label in dynamic_hour_labels},
-            "Quiere Empezar": st.column_config.CheckboxColumn("Empieza?"),
-            "Quiere Terminar": st.column_config.CheckboxColumn("Termina?"),
-            "Horas Límite (Opcional)": st.column_config.NumberColumn("Límite Stints", width="small")
+            "Quiere Empezar": st.column_config.CheckboxColumn("Quiere Empezar"),
+            "Quiere Terminar": st.column_config.CheckboxColumn("Quiere Terminar"),
+            "Horas Límite (Opcional)": st.column_config.NumberColumn("Maximo Horas/Carrera", width="small")
         }
     )
     if st.button("💾 Guardar Configuración de Pilotos"):
