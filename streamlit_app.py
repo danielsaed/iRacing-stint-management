@@ -100,6 +100,8 @@ with mid_col_top:
                 if new_team_name and new_team_name not in st.session_state.db:
                     st.session_state.db[new_team_name] = get_default_team_structure(new_team_name)
                     save_data(client, st.session_state.db)
+                    # Actualizamos el estado de la sesión para reflejar el nuevo equipo
+                    st.session_state.db = load_data(client)
                     st.session_state.newly_created_team = new_team_name
                     st.rerun()
                 else:
@@ -110,6 +112,9 @@ with mid_col_top:
                 if team_to_delete and len(st.session_state.db) > 1:
                     del st.session_state.db[team_to_delete]
                     save_data(client, st.session_state.db)
+                    # Actualizamos el estado de la sesión para reflejar la eliminación
+                    st.session_state.db = load_data(client)
+                    st.session_state.selected_team = None # Deseleccionamos el equipo eliminado
                     st.rerun()
                 else:
                     st.error("No puedes eliminar el último equipo.")
@@ -215,6 +220,7 @@ with st.expander("1. Configuración de Disponibilidad de Pilotos", expanded=True
         latest_db_data[st.session_state.selected_team]['pilots'] = df_to_save.to_dict('records')
         latest_db_data[st.session_state.selected_team]['horario'] = latest_horario
         save_data(client, latest_db_data)
+        st.session_state.db = latest_db_data # Actualiza el estado de la sesión con los nuevos datos
         st.success("Configuración guardada y horario sincronizado.")
         st.rerun()
 
@@ -258,15 +264,18 @@ with col_assign:
 
     if st.button("💾 Guardar Horario Asignado", use_container_width=True):
         latest_db_data = load_data(client)
-        latest_horario = latest_db_data[st.session_state.selected_team]['horario']
+        # Obtenemos una copia del horario para modificarla
+        horario_a_guardar = latest_db_data[st.session_state.selected_team]['horario']
         for i in range(race_duration):
+            # Comparamos con el horario mostrado en la UI (horario_df)
             if nuevas_asignaciones[i] != horario_df.loc[i, "Piloto al Volante"]:
-                latest_horario[i]['Piloto al Volante'] = nuevas_asignaciones[i]
+                horario_a_guardar[i]['Piloto al Volante'] = nuevas_asignaciones[i]
             if nuevos_comentarios[i] != horario_df.loc[i, "Comentarios"]:
-                latest_horario[i]['Comentarios'] = nuevos_comentarios[i]
+                horario_a_guardar[i]['Comentarios'] = nuevos_comentarios[i]
         
-        latest_db_data[st.session_state.selected_team]['horario'] = latest_horario
+        latest_db_data[st.session_state.selected_team]['horario'] = horario_a_guardar
         save_data(client, latest_db_data)
+        st.session_state.db = latest_db_data # Actualiza el estado de la sesión con los nuevos datos
         st.success("Horario guardado y fusionado correctamente.")
         st.rerun()
 
